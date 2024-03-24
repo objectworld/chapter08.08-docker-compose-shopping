@@ -1,0 +1,84 @@
+services:
+  config-service:
+    image: objectworld/config-server:0.0.1-SNAPSHOT
+    ports:
+      - "8788:8788"
+    healthcheck:
+      test: curl --fail http://localhost:8788/discovery-service/default  || exit 1
+      interval: 5s
+      timeout: 2s
+      retries: 3
+    networks:
+      - shopping-net
+  discovery-service:
+    image: objectworld/discovery-server:0.0.1-SNAPSHOT
+    ports:
+      - "8761:8761"
+    depends_on:
+      config-service:
+        condition: service_healthy
+    healthcheck:
+      test: curl --fail http://localhost:8761/eureka/v2/apps || exit 1
+      interval: 4s
+      timeout: 2s
+      retries: 3
+    networks:
+      - shopping-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+  zipkin:
+    container_name: zipkin
+    image: openzipkin/zipkin
+    extra_hosts: [ 'host.docker.internal:host-gateway' ]
+    ports:
+      - "9411:9411"
+    networks:
+      - shopping-net
+  customer-service:
+    image: objectworld/customer-service:0.0.1-SNAPSHOT
+    ports:
+      - "8080"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - shopping-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+  product-service:
+    image: objectworld/product-service:0.0.1-SNAPSHOT
+    ports:
+      - "8080"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - shopping-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+  order-service:
+    image: objectworld/order-service:0.0.1-SNAPSHOT
+    ports:
+      - "8080"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - shopping-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+  gateway-service:
+    image: objectworld/api-gateway:0.0.1-SNAPSHOT
+    ports:
+      - "8222:8222"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - shopping-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+networks:
+  shopping-net:
+    name: shopping
+    external: true
